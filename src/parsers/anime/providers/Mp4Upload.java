@@ -13,14 +13,15 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Mp4Upload {
-    private static final String CODEC = "codec";
-    private static final String RESOLUTION = "resolution";
-    private static final String FRAMERATE = "framerate";
-    private static final String BITRATE = "bitrate";
-    private static final String AUDIO_INFO = "audio_info";
+    public static final String CODEC = "codec";
+    public static final String RESOLUTION = "resolution";
+    public static final String FRAMERATE = "framerate";
+    public static final String BITRATE = "bitrate";
+    public static final String AUDIO_INFO = "audio_info";
 
+    private static final String EXTRA_INFO_PATTERN = "IFRAME\\|(\\d+)\\|\\|(\\d+)\\|false\\|h1\\|w1\\|(\\w+)\\|devicePixelRatio";
     private static final String VIDEO_URL_PATTERN = "(mp4)\\|(video)\\|(\\w+)\\|(282)\\|src";
-    private static final String URL_TEMPLATE = "https://www9.mp4upload.com:%s/d/%s/%s.%s";
+    private static final String URL_TEMPLATE = "https://%s.mp4upload.com:%s/d/%s/%s.%s";
 
     private static final String FILE_INFO_SELECTOR = "div.fileinfo > ul > li > span";
 
@@ -38,8 +39,21 @@ public class Mp4Upload {
         return infos;
     }
 
-    public Video getVideo(Document doc) {
+    public static Video getVideo(Document doc) {
         Matcher matcher = Pattern
+                .compile(EXTRA_INFO_PATTERN)
+                .matcher(doc.html());
+
+        String qualityX = "";
+        String qualityY = "";
+        if (matcher.find()) {
+            qualityX = matcher.group(2);
+            qualityY = matcher.group(1);
+        }
+
+        String protocol = matcher.group(3);
+
+        matcher = Pattern
                 .compile(VIDEO_URL_PATTERN)
                 .matcher(doc.html());
 
@@ -47,17 +61,13 @@ public class Mp4Upload {
         if (matcher.find()) {
             videoUrl = String.format(
                     URL_TEMPLATE,
+                    protocol,
                     matcher.group(4),
                     matcher.group(3),
                     matcher.group(2),
                     matcher.group(1)
             );
         }
-        Elements elms = doc.select("div");
-        Element qualityElement = doc.selectFirst("div.fileinfo ul li:nth-child(3) span:nth-child(2)");
-        String quality = qualityElement.ownText();
-        String qualityX = quality.split(" x ")[0].trim();
-        String qualityY = quality.split(" x ")[1].trim();
 
         return new Video(videoUrl, new String[]{qualityX, qualityY});
     }
